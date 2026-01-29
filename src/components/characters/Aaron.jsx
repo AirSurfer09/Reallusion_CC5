@@ -193,28 +193,28 @@ export const Aaron = React.forwardRef(
     );
 
     // Play idle animation on repeat
-    React.useEffect(() => {
-      if (actions && Object.keys(actions).length > 0) {
-        // Get the first animation (or specific animation if you know the name)
-        const firstAnimationName = Object.keys(actions)[0];
-        const action = actions[firstAnimationName];
-
-        if (action) {
-          action.reset().play();
-          action.setLoop(2, Infinity); // LoopRepeat mode, infinite times
-          console.log(
-            `Playing animation: ${firstAnimationName} on repeat (Aaron)`,
-          );
-        }
-      }
-
-      // Cleanup
-      return () => {
-        if (actions) {
-          Object.values(actions).forEach((action) => action?.stop());
-        }
-      };
-    }, [actions]);
+    // React.useEffect(() => {
+    //   if (actions && Object.keys(actions).length > 0) {
+    //     // Get the first animation (or specific animation if you know the name)
+    //     const firstAnimationName = Object.keys(actions)[0];
+    //     const action = actions[firstAnimationName];
+    //
+    //     if (action) {
+    //       action.reset().play();
+    //       action.setLoop(2, Infinity); // LoopRepeat mode, infinite times
+    //       console.log(
+    //         `Playing animation: ${firstAnimationName} on repeat (Aaron)`,
+    //       );
+    //     }
+    //   }
+    //
+    //   // Cleanup
+    //   return () => {
+    //     if (actions) {
+    //       Object.values(actions).forEach((action) => action?.stop());
+    //     }
+    //   };
+    // }, [actions]);
 
     // Pass lipsync state up to parent
     React.useEffect(() => {
