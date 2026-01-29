@@ -6,9 +6,11 @@ Updated with lipsync, head tracking, pupil tracking, and animation support
 */
 
 import React from "react";
-import { useGraph, useThree } from "@react-three/fiber";
+import * as THREE from "three";
+import { useGraph, useThree, useFrame } from "@react-three/fiber";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
+import { useArkitLipsync } from "../../hooks/useArkitLipsync";
 import { useHeadTracking } from "../../hooks/useHeadTracking";
 import { usePupilTracking } from "../../hooks/usePupilTracking";
 import { useMetahumanLipsync } from "../../hooks/useMetahumanLipsync";
@@ -159,12 +161,22 @@ export const AaronMha = React.forwardRef(
 
     // Use the ARKit lipsync hook with modular mapping system (call FIRST to get isPlaying)
     // Available presets: 'ARKIT_TO_CC_EXTENDED', 'ARKIT_TO_RPM', 'ARKIT_TO_ARKIT', 'METAHUMAN_TO_CC5', 'METAHUMAN_TO_CC5_DIRECT'
+    // MetaHuman bone names (lowercase CC5 compatible - from console logs)
+    const metahumanBones = {
+      JAW: "cc_base_jawroot",
+      TONGUE_01: "cc_base_tongue01",
+      TONGUE_02: "cc_base_tongue02",
+      HEAD: "head",
+      NECK: "cc_base_necktwist01", // Standard CC5 neck bone (lowercase)
+    };
+
     const { isPlaying, totalFrames } = useMetahumanLipsync({
       convaiClient,
       characterRef: internalCharacterRef,
       scene: threeScene,
-      mappingPreset: "METAHUMAN_DIRECT", // CC5 mapping (complex corrective combinations)
+      mappingPreset: "METAHUMAN_DIRECT", // Direct MetaHuman mapping
       customMapping: blendshapeMapping, // Optional overrides from props
+      boneNames: metahumanBones, // Custom bone configuration for MetaHuman (lowercase)
     });
 
     // Use the head tracking hook - tracks camera position
@@ -242,6 +254,29 @@ export const AaronMha = React.forwardRef(
         meshRefProp.current = faceMeshRef.current;
       }
     }, [meshRefProp]);
+
+    // Debug: Log available nodes to find bone structure
+    React.useEffect(() => {
+      if (nodes.root) {
+        console.log("[AaronMha] Available bones:", Object.keys(nodes));
+        console.log("[AaronMha] Root bone:", nodes.root);
+
+        // Traverse skeleton to find jaw and head bones
+        nodes.root.traverse((bone) => {
+          if (bone.type === "Bone") {
+            if (bone.name.toLowerCase().includes("jaw")) {
+              console.log("[AaronMha] Found jaw bone:", bone.name);
+            }
+            if (bone.name.toLowerCase().includes("head")) {
+              console.log("[AaronMha] Found head bone:", bone.name);
+            }
+            if (bone.name.toLowerCase().includes("tongue")) {
+              console.log("[AaronMha] Found tongue bone:", bone.name);
+            }
+          }
+        });
+      }
+    }, [nodes]);
 
     // Safety check: ensure all required nodes exist
     if (!nodes.root || !nodes.CC_Base_Body) {
