@@ -18,7 +18,7 @@ import {
 } from "../constants";
 
 // Import MetaHuman format from SDK (use relative path in local example)
-import { METAHUMAN_ORDER_251 } from "../../../../dist/lipsync-helpers/metahumanOrder251.js";
+import { METAHUMAN_ORDER_251 } from "@convai/web-sdk";
 
 /**
  * Time-Based Lipsync Configuration
