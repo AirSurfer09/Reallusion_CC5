@@ -241,6 +241,11 @@ export const useMetahumanLipsync = ({
   const tongue01BoneRef = useRef(null);
   const tongue02BoneRef = useRef(null);
   const tongueDefaultPos = useRef({ x: 0, y: 0 });
+  const lowerTeethBoneRef = useRef(null); // CC_Base_Teeth02 bone for lower teeth adjustment
+  const lowerTeethBaseYRef = useRef(null); // Store original Y position
+  const lowerTeethBaseXRef = useRef(null); // Store original X position
+  const upperTeethBoneRef = useRef(null); // CC_Base_Teeth01 bone for upper teeth adjustment
+  const upperTeethBaseYRef = useRef(null); // Store original Y position
 
   const blinkRef = useRef({
     isBlinking: false,
@@ -279,6 +284,41 @@ export const useMetahumanLipsync = ({
     if (tongue02BoneRef.current) {
       tongueDefaultPos.current.x = tongue02BoneRef.current.position.x;
       tongueDefaultPos.current.y = tongue02BoneRef.current.position.y;
+    }
+
+    // Find lower teeth bone (CC_Base_Teeth02 or cc_base_teeth02 for lowercase models)
+    if (characterRef.current) {
+      lowerTeethBoneRef.current =
+        characterRef.current.getObjectByName("CC_Base_Teeth02") ||
+        characterRef.current.getObjectByName("cc_base_teeth02");
+      if (lowerTeethBoneRef.current && lowerTeethBaseYRef.current === null) {
+        lowerTeethBaseYRef.current = lowerTeethBoneRef.current.position.y;
+        lowerTeethBaseXRef.current = lowerTeethBoneRef.current.position.x;
+        console.log(
+          "[MetahumanLipsync] Lower teeth bone found:",
+          lowerTeethBoneRef.current.name,
+          "Base Y:",
+          lowerTeethBaseYRef.current,
+          "Base X:",
+          lowerTeethBaseXRef.current,
+        );
+      }
+    }
+
+    // Find upper teeth bone (CC_Base_Teeth01 or cc_base_teeth01 for lowercase models)
+    if (characterRef.current) {
+      upperTeethBoneRef.current =
+        characterRef.current.getObjectByName("CC_Base_Teeth01") ||
+        characterRef.current.getObjectByName("cc_base_teeth01");
+      if (upperTeethBoneRef.current && upperTeethBaseYRef.current === null) {
+        upperTeethBaseYRef.current = upperTeethBoneRef.current.position.y;
+        console.log(
+          "[MetahumanLipsync] Upper teeth bone found:",
+          upperTeethBoneRef.current.name,
+          "Base Y:",
+          upperTeethBaseYRef.current,
+        );
+      }
     }
 
     if (scene) {
@@ -444,6 +484,11 @@ export const useMetahumanLipsync = ({
         jawBoneRef.current,
         jawBaseRotationZRef.current,
         currentJawRotationRef,
+        lowerTeethBoneRef.current,
+        lowerTeethBaseYRef.current,
+        lowerTeethBaseXRef.current,
+        upperTeethBoneRef.current,
+        upperTeethBaseYRef.current,
         lipsyncLerpSpeed,
         jawLerpSpeed,
       );
@@ -700,8 +745,12 @@ function applyMetaHumanToCC5(
   }
 
   // Apply jaw bone rotation (CC5 uses same bone structure as CC Extended)
-  // Use CTRL_expressions_jawOpen for bone rotation
-  const jawValue = metahumanBlendshapes["CTRL_expressions_jawOpen"] || 0;
+  // Use CTRL_expressions_jawOpen for bone rotation (clamped to max 0.7, reduce by 0.1 only when >= 0.3)
+  const rawJawValue = Math.min(
+    metahumanBlendshapes["CTRL_expressions_jawOpen"] || 0,
+    0.7,
+  );
+  const jawValue = rawJawValue < 0.3 ? rawJawValue : rawJawValue - 0.1; // Only subtract 0.1 when >= 0.3
   if (jawBone) {
     applyJawBoneSmooth(
       jawBone,
@@ -730,6 +779,10 @@ function applyMetaHumanToCC5(
  * - If jawBone exists: CTRL_expressions_jawOpen controls bone rotation (skipped as morph)
  * - If jawBone is null: CTRL_expressions_jawOpen applied as morph target
  *
+ * TEETH OFFSET:
+ * - Lower teeth: Move down (Y) and back (X) based on jaw opening to hide teeth
+ * - Upper teeth: Move up (Y) slightly based on jaw opening
+ *
  * INTENSITY ADJUSTMENTS:
  * - Upper face morphs (eyes, brows, nose, cheek squints): 0.7x multiplier
  * - Mouth/jaw morphs: Full intensity (1.0x)
@@ -742,6 +795,11 @@ function applyMetaHumanDirect(
   jawBone,
   jawBaseRotationZ,
   currentJawRotationRef,
+  lowerTeethBone,
+  lowerTeethBaseY,
+  lowerTeethBaseX,
+  upperTeethBone,
+  upperTeethBaseY,
   lipsyncLerpSpeed,
   jawLerpSpeed,
 ) {
@@ -835,12 +893,13 @@ function applyMetaHumanDirect(
   });
 
   // Apply jaw bone rotation (only if bone exists)
-  // Extract jawOpen value from the array
+  // Extract jawOpen value from the array (clamped to max 0.7, reduce by 0.1 only when >= 0.3)
   const jawOpenIndex = METAHUMAN_ORDER_251.indexOf("CTRL_expressions_jawOpen");
-  const jawValue =
+  const rawJawValue =
     jawOpenIndex >= 0 && jawOpenIndex < currentFrame.length
-      ? (currentFrame[jawOpenIndex] || 0) * fadeInWeight
+      ? Math.min((currentFrame[jawOpenIndex] || 0) * fadeInWeight, 0.7)
       : 0;
+  const jawValue = rawJawValue < 0.3 ? rawJawValue : rawJawValue - 0.1; // Only subtract 0.1 when >= 0.3
 
   if (jawBone && jawValue > 0) {
     applyJawBoneSmooth(
@@ -850,6 +909,30 @@ function applyMetaHumanDirect(
       jawValue,
       jawLerpSpeed,
     );
+  }
+
+  // Apply lower teeth bone adjustment based on jaw opening
+  // Use exponential curve: starts low, ramps up quickly at higher jaw values
+  // Move down (Y) and back (X) to hide teeth inside the mouth
+  if (lowerTeethBone && lowerTeethBaseY !== null && lowerTeethBaseX !== null) {
+    // Normalize jaw value to 0-1 range (assuming max jaw open is around 0.7)
+    const normalizedJaw = Math.min(jawValue / 0.7, 1.0);
+    // Use exponential curve (x^2.5) - stays low at first, ramps up quickly
+    const exponentialJaw = Math.pow(normalizedJaw, 2.5);
+    const yOffset = THREE.MathUtils.lerp(0.2, 0.5, exponentialJaw); // 0.2 when closed, 0.5 when open
+    lowerTeethBone.position.y = lowerTeethBaseY + yOffset;
+    // lowerTeethBone.position.x = lowerTeethBaseX - 0.3; // Constant back offset
+    lowerTeethBone.updateMatrixWorld(true);
+  }
+
+  // Apply upper teeth bone adjustment based on jaw opening
+  // Interpolate Y offset from -0.1 (jaw closed) to -0.2 (jaw fully open)
+  if (upperTeethBone && upperTeethBaseY !== null) {
+    // Normalize jaw value to 0-1 range (assuming max jaw open is around 0.7)
+    const normalizedJaw = Math.min(jawValue / 0.7, 1.0);
+    const yOffset = THREE.MathUtils.lerp(-0.1, -0.2, normalizedJaw); // -0.1 when closed, -0.2 when open
+    upperTeethBone.position.y = upperTeethBaseY + yOffset; // Negative = up
+    upperTeethBone.updateMatrixWorld(true);
   }
 }
 

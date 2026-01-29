@@ -6,11 +6,9 @@ Updated with lipsync, head tracking, pupil tracking, and animation support
 */
 
 import React from "react";
-import * as THREE from "three";
 import { useGraph, useThree, useFrame } from "@react-three/fiber";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
-import { useArkitLipsync } from "../../hooks/useArkitLipsync";
 import { useHeadTracking } from "../../hooks/useHeadTracking";
 import { usePupilTracking } from "../../hooks/usePupilTracking";
 import { useMetahumanLipsync } from "../../hooks/useMetahumanLipsync";
