@@ -1,5 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
-import { Aaron } from "./characters/Aaron";
+// import { Aaron } from "./characters/Aaron";
+import { AaronMha } from "./characters/AaronMha";
 
 import * as THREE from "three";
 import { useEffect, useRef } from "react";
@@ -89,7 +90,7 @@ export const Experience = ({
       {/* Main Character - Zari with lipsync, head tracking, pupil tracking, and animation */}
       {/* <Zari */}
       {/* <Nia */}
-      <Aaron
+      <AaronMha
         meshRefProp={meshRef}
         convaiClient={convaiClient}
         blendshapeMapping={blendshapeMapping}
