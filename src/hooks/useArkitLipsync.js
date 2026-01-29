@@ -11,8 +11,6 @@ import {
   ARKIT_TO_CC_EXTENDED,
   ARKIT_TO_RPM,
   ARKIT_TO_ARKIT,
-  METAHUMAN_TO_CC5_MAPPING,
-  convertMetaHumanToCC5,
   convertMetaHumanToCC5Direct,
   getBonePreset,
 } from "../constants";
