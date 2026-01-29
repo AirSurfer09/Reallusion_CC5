@@ -1,5 +1,8 @@
 {
   "git": {
     "lfs": true
-  }
+  },
+  "buildCommand": "pnpm build",
+  "outputDirectory": "dist",
+  "framework": "vite"
 }
