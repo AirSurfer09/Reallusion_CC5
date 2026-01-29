@@ -840,17 +840,26 @@ function applyMorphValueSmooth(
   const targets = morphCache.get(name);
   if (!targets) return;
 
-  // Read the current animation morph value from the first target
-  // (Animation system sets these values directly on the influences array)
-  const animationValue = targets[0]?.influences[targets[0].index] || 0;
+  // Performance optimization: Skip animation value reading when blend weight is near zero
+  // During speech (blend weight ~0), we don't need to read animation values
+  let blendedTarget;
 
-  // Blend: animation value * weight + lipsync value * (1 - weight)
-  const blendedTarget =
-    animationValue * animationBlendWeight +
-    targetValue * (1 - animationBlendWeight);
+  if (animationBlendWeight < 0.01) {
+    // Full lipsync control - no animation blending needed
+    blendedTarget = targetValue;
+  } else {
+    // Read the current animation morph value from the first target
+    // (Animation system sets these values directly on the influences array)
+    const animationValue = targets[0]?.influences[targets[0].index] || 0;
 
-  // Get current smoothed value (or initialize to current animation value)
-  const currentValue = smoothedValues.get(name) ?? animationValue;
+    // Blend: animation value * weight + lipsync value * (1 - weight)
+    blendedTarget =
+      animationValue * animationBlendWeight +
+      targetValue * (1 - animationBlendWeight);
+  }
+
+  // Get current smoothed value (or initialize to 0 when no blend weight)
+  const currentValue = smoothedValues.get(name) || 0;
 
   // Lerp towards blended target value every frame (like head tracking does)
   const newValue = currentValue + (blendedTarget - currentValue) * lerpSpeed;
