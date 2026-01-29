@@ -6,7 +6,7 @@
 export const CONVAI_CONFIG = {
   apiKey: "2c37cc3c56366df491563a87624a0221",
   // characterId: "87d76c6a-efbf-11f0-bcc2-42010a5c0002",
-  characterId: "f83a92a4-fd14-11f0-811a-42010a7be027",
+  characterId: "95a276e8-fc83-11f0-852b-42010a5c0004",
   ttsEnabled: true,
   blendshapeProvider: "neurosync",
   blendshapeConfig: {
