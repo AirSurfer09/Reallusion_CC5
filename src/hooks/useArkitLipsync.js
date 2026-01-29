@@ -18,7 +18,7 @@ import {
 } from "../constants";
 
 // Import MetaHuman format from SDK (use relative path in local example)
-import { METAHUMAN_ORDER_251 } from "@convai/web-sdk";
+import { METAHUMAN_ORDER_251 } from "../../../../dist/lipsync-helpers/metahumanOrder251.js";
 
 /**
  * Time-Based Lipsync Configuration
@@ -444,8 +444,12 @@ export const useArkitLipsync = ({
     const exactFramePos = effectiveElapsedTime * TARGET_FPS + FRAME_OFFSET;
     const targetFrameIndex = Math.floor(exactFramePos);
 
+    // Calculate interpolation factor (fractional part of frame position)
+    const frameInterpolation = exactFramePos - targetFrameIndex;
+
     // Use target frame but clamp to available frames
     const frameIndex = Math.min(targetFrameIndex, frames.length - 1);
+    const nextFrameIndex = Math.min(frameIndex + 1, frames.length - 1);
 
     // Check if we're at the end of available frames
     if (frameIndex >= frames.length - 1) {
@@ -466,20 +470,56 @@ export const useArkitLipsync = ({
       return;
     }
 
-    // Get current frame
+    // Get current and next frames for interpolation
     const currentFrame = frames[frameIndex];
+    const nextFrame = frames[nextFrameIndex];
 
-    // Verify frame is valid (handle both array and object formats)
-    const isValidFrame =
+    // Verify current frame is valid
+    const isValidCurrentFrame =
       currentFrame &&
       ((Array.isArray(currentFrame) && currentFrame.length > 0) || // ARKit array format
         (typeof currentFrame === "object" &&
           Object.keys(currentFrame).length > 0)); // MetaHuman object format
 
-    if (!isValidFrame) {
+    if (!isValidCurrentFrame) {
       console.warn("[Lipsync] Invalid frame at index", frameIndex);
       return;
     }
+
+    // Interpolate between current and next frame for smooth transitions
+    // TEMPORARILY DISABLED - Testing if interpolation causes stuttering
+    let interpolatedFrame = currentFrame;
+
+    /*
+    // Only interpolate if we have a valid next frame AND they're different frames
+    const shouldInterpolate = 
+      nextFrame && 
+      frameIndex !== nextFrameIndex &&
+      frameInterpolation > 0.001; // Small threshold to avoid unnecessary computation
+    
+    if (shouldInterpolate) {
+      // Create interpolated frame
+      if (Array.isArray(currentFrame)) {
+        // ARKit array format - interpolate each value
+        interpolatedFrame = currentFrame.map((currentValue, index) => {
+          const nextValue = nextFrame[index] || 0;
+          return currentValue + (nextValue - currentValue) * frameInterpolation;
+        });
+      } else {
+        // MetaHuman object format - interpolate each key
+        interpolatedFrame = {};
+        // Only iterate through keys that exist in current frame
+        for (const key of Object.keys(currentFrame)) {
+          const currentValue = currentFrame[key] || 0;
+          const nextValue = nextFrame[key] || 0;
+          interpolatedFrame[key] = currentValue + (nextValue - currentValue) * frameInterpolation;
+        }
+      }
+    } else {
+      // No interpolation needed, use current frame directly
+      interpolatedFrame = currentFrame;
+    }
+    */
 
     // Apply blendshapes based on mapping type
     // Smoothing is handled by per-frame lerping via LIPSYNC_LERP_SPEED
@@ -487,11 +527,11 @@ export const useArkitLipsync = ({
     const jawLerpSpeed = ANIMATION_CONFIG.JAW_LERP_SPEED;
 
     if (mappingConfig.sourceFormat === "metahuman") {
-      // MetaHuman to CC5 - use direct mapping
+      // MetaHuman to CC5 - use direct mapping with interpolated frame
       applyMetaHumanToCC5(
         morphCache,
         smoothedMorphValues.current,
-        currentFrame,
+        interpolatedFrame,
         state.fadeInWeight,
         jawBoneRef.current,
         jawBaseRotationZRef.current,
@@ -506,12 +546,12 @@ export const useArkitLipsync = ({
         idleAnimationBlendWeight.current, // Pass blend weight for animation/lipsync blending
       );
     } else {
-      // ARKit-based mapping (simple 1:1)
+      // ARKit-based mapping (simple 1:1) with interpolated frame
       applyArkitMapping(
         morphCache,
         smoothedMorphValues.current,
         resolvedMapping,
-        currentFrame,
+        interpolatedFrame,
         state.fadeInWeight,
         jawBoneRef.current,
         jawBaseRotationZRef.current,
