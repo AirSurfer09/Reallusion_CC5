@@ -11,6 +11,8 @@ const DEFAULT_CONFIG = {
   headPitchFactor: 0.7, // How much of pitch goes to head
   neckPitchFactor: 0.3, // How much of pitch goes to neck
   neckYawFactor: 0.7, // How much of extra yaw goes to neck
+  speakingWeight: 0.7, // Tracking influence when speaking (0-1, higher = more tracking)
+  idleWeight: 0.5, // Tracking influence when idle (0-1, higher = more tracking)
   enabled: true, // Whether tracking is active
 };
 
@@ -227,10 +229,10 @@ export function useMhaHeadTracking(
     }
     // else: target is outside tracking range, all target angles stay at 0 (look forward)
 
-    // Update tracking weight: lerp towards 0.7 when speaking / 0.5 when not speaking (if in range), 0 when out
-    // Speaking: 0.7 = head tracking influence, 0.3 = animation influence
-    // Not speaking: 0.5 = head tracking influence, 0.5 = animation influence
-    const targetWeight = isInTrackingRange ? (isSpeaking ? 0.7 : 0.5) : 0;
+    // Update tracking weight: lerp towards speakingWeight when speaking / idleWeight when not speaking (if in range), 0 when out
+    // Speaking: higher tracking influence (default 0.7 = 70% tracking, 30% animation)
+    // Not speaking: moderate tracking influence (default 0.5 = 50% tracking, 50% animation)
+    const targetWeight = isInTrackingRange ? (isSpeaking ? options.speakingWeight : options.idleWeight) : 0;
     trackingWeight.current +=
       (targetWeight - trackingWeight.current) * options.lerpSpeed;
 

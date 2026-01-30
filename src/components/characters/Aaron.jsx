@@ -43,11 +43,17 @@ export const Aaron = React.forwardRef(
   ) => {
     const internalCharacterRef = React.useRef();
     const faceMeshRef = React.useRef(); // Ref for CC_Base_Body (face with morph targets)
+    const previousPlayingState = React.useRef(false); // Track previous speaking state
+    const currentIdleWeight = React.useRef(1); // Current weight for idle animation
+    const currentTalkWeight = React.useRef(0); // Current weight for talk animation
+    const targetIdleWeight = React.useRef(1); // Target weight for idle animation
+    const targetTalkWeight = React.useRef(0); // Target weight for talk animation
 
     // Load character model
     const { scene, animations } = useGLTF("/aaron-transformed.glb");
     const clone = React.useMemo(() => SkeletonUtils.clone(scene), [scene]);
     const { nodes, materials } = useGraph(clone);
+    const { actions } = useAnimations(animations, internalCharacterRef);
     const { scene: threeScene, gl } = useThree();
 
     // Enhance material quality on mount - performant settings
@@ -174,16 +180,103 @@ export const Aaron = React.forwardRef(
     });
 
     // Use the head tracking hook - tracks camera position
-    // Tracking strength: 0.7 when speaking, 0.5 when idle
+    // Tracking strength: more prominent when speaking
     useMhaHeadTracking(
       nodes.root,
       {
         headOnlyAngle: Math.PI / 3, // 60 degrees each side (head only)
         maxTrackAngle: Math.PI / 2, // 90 degrees each side = 180 degrees total viewing cone
         lerpSpeed: 0.08,
+        speakingWeight: 0.85, // 85% tracking when speaking (more prominent)
+        idleWeight: 0.5, // 50% tracking when idle
       },
       isPlaying,
     );
+
+    // Initialize animations on mount
+    React.useEffect(() => {
+      if (!actions) return;
+
+      const idleAction = actions["Idle_Motion"];
+      const talkAction = actions["Talk_Motion"];
+
+      // Log available animations for debugging
+      if (Object.keys(actions).length > 0) {
+        console.log("[Aaron] Available animations:", Object.keys(actions));
+      }
+
+      if (!idleAction || !talkAction) {
+        console.warn("[Aaron] Animations not found:", {
+          idle: !!idleAction,
+          talk: !!talkAction,
+          available: Object.keys(actions),
+        });
+        return;
+      }
+
+      // Configure and start both animations
+      idleAction.setLoop(THREE.LoopRepeat, Infinity);
+      talkAction.setLoop(THREE.LoopRepeat, Infinity);
+      
+      // Start idle animation at full weight
+      idleAction.reset();
+      idleAction.play();
+      idleAction.setEffectiveWeight(1);
+      currentIdleWeight.current = 1;
+      targetIdleWeight.current = 1;
+      
+      // Start talk animation at zero weight
+      talkAction.reset();
+      talkAction.play();
+      talkAction.setEffectiveWeight(0);
+      currentTalkWeight.current = 0;
+      targetTalkWeight.current = 0;
+      
+      console.log("[Aaron] Animations initialized and playing");
+
+      // Cleanup function
+      return () => {
+        if (idleAction) idleAction.stop();
+        if (talkAction) talkAction.stop();
+      };
+    }, [actions]);
+
+    // Update target weights when speaking state changes
+    React.useEffect(() => {
+      if (isPlaying && !previousPlayingState.current) {
+        // Start talking
+        console.log("[Aaron] Starting talk animation");
+        targetIdleWeight.current = 0;
+        targetTalkWeight.current = 1;
+        previousPlayingState.current = true;
+      } else if (!isPlaying && previousPlayingState.current) {
+        // Stop talking
+        console.log("[Aaron] Stopping talk animation");
+        targetIdleWeight.current = 1;
+        targetTalkWeight.current = 0;
+        previousPlayingState.current = false;
+      }
+    }, [isPlaying]);
+
+    // Smooth weight interpolation using useFrame
+    useFrame(() => {
+      if (!actions) return;
+
+      const idleAction = actions["Idle_Motion"];
+      const talkAction = actions["Talk_Motion"];
+
+      if (!idleAction || !talkAction) return;
+
+      // Lerp weights smoothly (0.1 = smooth transition speed)
+      const lerpSpeed = 0.1;
+      
+      currentIdleWeight.current += (targetIdleWeight.current - currentIdleWeight.current) * lerpSpeed;
+      currentTalkWeight.current += (targetTalkWeight.current - currentTalkWeight.current) * lerpSpeed;
+
+      // Apply weights
+      idleAction.setEffectiveWeight(currentIdleWeight.current);
+      talkAction.setEffectiveWeight(currentTalkWeight.current);
+    });
 
     // Pass lipsync state up to parent
     React.useEffect(() => {
