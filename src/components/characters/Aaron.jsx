@@ -50,7 +50,9 @@ export const Aaron = React.forwardRef(
     const targetTalkWeight = React.useRef(0); // Target weight for talk animation
 
     // Load character model
-    const { scene, animations } = useGLTF("/aaron-transformed.glb");
+    const { scene, animations } = useGLTF(
+      "https://huggingface.co/datasets/airsurfer/Aaron/resolve/main/aaron-transformed.glb",
+    );
     const clone = React.useMemo(() => SkeletonUtils.clone(scene), [scene]);
     const { nodes, materials } = useGraph(clone);
     const { actions } = useAnimations(animations, internalCharacterRef);
@@ -219,82 +221,104 @@ export const Aaron = React.forwardRef(
     );
 
     // Initialize animations on mount
-    React.useEffect(() => {
-      if (!actions) return;
-
-      const idleAction = actions["Idle_Motion"];
-      const talkAction = actions["Talk_Motion"];
-
-      if (!idleAction || !talkAction) {
-        console.warn("[Aaron] Animations not found:", {
-          idle: !!idleAction,
-          talk: !!talkAction,
-          available: Object.keys(actions),
-        });
-        return;
-      }
-
-      // Configure and start both animations
-      idleAction.setLoop(THREE.LoopRepeat, Infinity);
-      talkAction.setLoop(THREE.LoopRepeat, Infinity);
-
-      // Start idle animation at full weight
-      idleAction.reset();
-      idleAction.play();
-      idleAction.setEffectiveWeight(1);
-      currentIdleWeight.current = 1;
-      targetIdleWeight.current = 1;
-
-      // Start talk animation at zero weight
-      talkAction.reset();
-      talkAction.play();
-      talkAction.setEffectiveWeight(0);
-      currentTalkWeight.current = 0;
-      targetTalkWeight.current = 0;
-
-      // Cleanup function
-      return () => {
-        if (idleAction) idleAction.stop();
-        if (talkAction) talkAction.stop();
-      };
-    }, [actions]);
-
-    // Update target weights when speaking state changes
-    React.useEffect(() => {
-      if (isPlaying && !previousPlayingState.current) {
-        // Start talking
-        targetIdleWeight.current = 0;
-        targetTalkWeight.current = 1;
-        previousPlayingState.current = true;
-      } else if (!isPlaying && previousPlayingState.current) {
-        // Stop talking
-        targetIdleWeight.current = 1;
-        targetTalkWeight.current = 0;
-        previousPlayingState.current = false;
-      }
-    }, [isPlaying]);
-
-    // Smooth weight interpolation using useFrame
-    useFrame(() => {
-      if (!actions) return;
-
-      const idleAction = actions["Idle_Motion"];
-      const talkAction = actions["Talk_Motion"];
-
-      if (!idleAction || !talkAction) return;
-
-      // Lerp weights smoothly (0.1 = smooth transition speed)
-      const lerpSpeed = 0.1;
-
-      currentIdleWeight.current +=
-        (targetIdleWeight.current - currentIdleWeight.current) * lerpSpeed;
-      currentTalkWeight.current +=
-        (targetTalkWeight.current - currentTalkWeight.current) * lerpSpeed;
-
-      // Apply weights
-      idleAction.setEffectiveWeight(currentIdleWeight.current);
-      talkAction.setEffectiveWeight(currentTalkWeight.current);
-    });
+    // React.useEffect(() => {
+    //   if (!actions) return;
+    //
+    //   const idleAction = actions["Idle_Motion"];
+    //   const talkAction = actions["Talk_Motion"];
+    //
+    //   if (!idleAction || !talkAction) {
+    //     console.warn("[Aaron] Animations not found:", {
+    //       idle: !!idleAction,
+    //       talk: !!talkAction,
+    //       available: Object.keys(actions),
+    //     });
+    //     return;
+    //   }
+    //
+    //   // Helper function to disable morph target tracks in an animation
+    //   const disableMorphTargetTracks = (action) => {
+    //     const clip = action.getClip();
+    //     clip.tracks = clip.tracks.filter((track) => {
+    //       // Keep only tracks that affect bones (skeleton), not morph targets
+    //       // Morph target tracks have names like: "meshName.morphTargetInfluences[0]"
+    //       const isMorphTrack = track.name.includes("morphTargetInfluences");
+    //       if (isMorphTrack) {
+    //         console.log("[Aaron] Removing morph track from animation:", track.name);
+    //       }
+    //       return !isMorphTrack;
+    //     });
+    //   };
+    //
+    //   // Remove morph target influences from both animations
+    //   disableMorphTargetTracks(idleAction);
+    //   disableMorphTargetTracks(talkAction);
+    //
+    //   // Configure and start both animations
+    //   idleAction.setLoop(THREE.LoopRepeat, Infinity);
+    //   talkAction.setLoop(THREE.LoopRepeat, Infinity);
+    //
+    //   // Start idle animation at full weight
+    //   idleAction.reset();
+    //   idleAction.play();
+    //   idleAction.setEffectiveWeight(1);
+    //   currentIdleWeight.current = 1;
+    //   targetIdleWeight.current = 1;
+    //
+    //   // Start talk animation at zero weight
+    //   talkAction.reset();
+    //   talkAction.play();
+    //   talkAction.setEffectiveWeight(0);
+    //   currentTalkWeight.current = 0;
+    //   targetTalkWeight.current = 0;
+    //
+    //   console.log("[Aaron] Animations initialized (morph targets disabled)");
+    //
+    //   // Cleanup function
+    //   return () => {
+    //     if (idleAction) idleAction.stop();
+    //     if (talkAction) talkAction.stop();
+    //   };
+    // }, [actions]);
+    //
+    // // Update target weights when speaking state changes
+    // React.useEffect(() => {
+    //   if (isPlaying && !previousPlayingState.current) {
+    //     // Start talking - transition to talk animation
+    //     console.log("[Aaron] Starting transition: Idle -> Talk");
+    //     targetIdleWeight.current = 0;
+    //     targetTalkWeight.current = 1;
+    //     previousPlayingState.current = true;
+    //   } else if (!isPlaying && previousPlayingState.current) {
+    //     // Stop talking - transition to idle animation
+    //     console.log("[Aaron] Starting transition: Talk -> Idle");
+    //     targetIdleWeight.current = 1;
+    //     targetTalkWeight.current = 0;
+    //     previousPlayingState.current = false;
+    //   }
+    // }, [isPlaying]);
+    //
+    // // Smooth weight interpolation using useFrame
+    // useFrame(() => {
+    //   if (!actions) return;
+    //
+    //   const idleAction = actions["Idle_Motion"];
+    //   const talkAction = actions["Talk_Motion"];
+    //
+    //   if (!idleAction || !talkAction) return;
+    //
+    //   // Lerp weights smoothly - both animations stay playing, weights crossfade
+    //   const lerpSpeed = 0.1;
+    //
+    //   currentIdleWeight.current +=
+    //     (targetIdleWeight.current - currentIdleWeight.current) * lerpSpeed;
+    //   currentTalkWeight.current +=
+    //     (targetTalkWeight.current - currentTalkWeight.current) * lerpSpeed;
+    //
+    //   // Apply weights to both animations (both keep playing, weights control blend)
+    //   idleAction.setEffectiveWeight(currentIdleWeight.current);
+    //   talkAction.setEffectiveWeight(currentTalkWeight.current);
+    // });
 
     // Pass lipsync state up to parent
     React.useEffect(() => {
@@ -654,4 +678,6 @@ export const Aaron = React.forwardRef(
   },
 );
 
-useGLTF.preload("/aaron-transformed.glb");
+useGLTF.preload(
+  "https://huggingface.co/datasets/airsurfer/Aaron/resolve/main/aaron-transformed.glb",
+);
