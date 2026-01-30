@@ -1,9 +1,9 @@
 import { OrbitControls } from "@react-three/drei";
 // import { Aaron } from "./characters/Aaron";
-import { AaronMha } from "./characters/AaronMha";
 
 import * as THREE from "three";
 import { useEffect, useRef } from "react";
+import { Aaron } from "./characters/Aaron";
 
 // Gradient Background Component
 function GradientBackground() {
@@ -90,7 +90,7 @@ export const Experience = ({
       {/* Main Character - Zari with lipsync, head tracking, pupil tracking, and animation */}
       {/* <Zari */}
       {/* <Nia */}
-      <AaronMha
+      <Aaron
         meshRefProp={meshRef}
         convaiClient={convaiClient}
         blendshapeMapping={blendshapeMapping}

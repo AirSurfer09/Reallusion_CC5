@@ -14,53 +14,6 @@
  */
 
 /**
- * Evaluate a curve at a given input time/value using linear interpolation
- *
- * @param {Array<{time: number, value: number}>} keys - Curve keyframes sorted by time
- * @param {number} inputValue - Input value (0-1)
- * @returns {number} Interpolated output value
- */
-function evaluateCurve(keys, inputValue) {
-  if (!keys || keys.length === 0) {
-    // No curve defined, pass through
-    return inputValue;
-  }
-
-  // Clamp input to valid range
-  inputValue = Math.max(0, Math.min(1, inputValue));
-
-  // Find the two keyframes to interpolate between
-  let startKey = keys[0];
-  let endKey = keys[keys.length - 1];
-
-  // If input is before first key or after last key, clamp to boundary
-  if (inputValue <= startKey.time) {
-    return startKey.value;
-  }
-  if (inputValue >= endKey.time) {
-    return endKey.value;
-  }
-
-  // Find the two keys that bracket the input value
-  for (let i = 0; i < keys.length - 1; i++) {
-    if (inputValue >= keys[i].time && inputValue <= keys[i + 1].time) {
-      startKey = keys[i];
-      endKey = keys[i + 1];
-      break;
-    }
-  }
-
-  // Linear interpolation between the two keys
-  const timeDelta = endKey.time - startKey.time;
-  if (timeDelta === 0) {
-    return startKey.value;
-  }
-
-  const t = (inputValue - startKey.time) / timeDelta;
-  return startKey.value + (endKey.value - startKey.value) * t;
-}
-
-/**
  * Combined blendshape mappings
  * Maps MetaHuman source channels to CC5 target channels
  *
@@ -69,7 +22,6 @@ function evaluateCurve(keys, inputValue) {
  * - source: Array of MetaHuman CTRL_expressions_* channels
  * - target: CC5 C_* channel name
  * - mode: "Add" (additive) or "Limit" (limits the value)
- * - curve: Array of keyframes [{time, value}] for remapping output (optional)
  */
 export const METAHUMAN_TO_CC5_MAPPING = [
   // ========== NOSE WRINKLE & BROW COMBINATIONS ==========
@@ -78,20 +30,12 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     source: ["CTRL_expressions_noseWrinkleL", "CTRL_expressions_browDownL"],
     target: "C_NoseWrinkleL_BrowDownL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "NoseWrinkleR_BrowDownR",
     source: ["CTRL_expressions_noseWrinkleR", "CTRL_expressions_browDownR"],
     target: "C_NoseWrinkleR_BrowDownR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== EYE BLINK COMBINATIONS ==========
@@ -100,142 +44,84 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     source: ["CTRL_expressions_eyeBlinkL"],
     target: "C_BlinkL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 0.5, value: 1 },
-      { time: 1, value: 0 },
-    ],
   },
   {
     name: "BlinkR",
     source: ["CTRL_expressions_eyeBlinkR"],
     target: "C_BlinkR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 0.5, value: 1 },
-      { time: 1, value: 0 },
-    ],
   },
   {
     name: "BlinkL_LookDownL",
     source: ["CTRL_expressions_eyeBlinkL", "CTRL_expressions_eyeLookDownL"],
     target: "C_BlinkL_LookDownL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkR_LookDownR",
     source: ["CTRL_expressions_eyeBlinkR", "CTRL_expressions_eyeLookDownR"],
     target: "C_BlinkR_LookDownR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkL_LookUpL",
     source: ["CTRL_expressions_eyeBlinkL", "CTRL_expressions_eyeLookUpL"],
     target: "C_BlinkL_LookUpL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkR_LookUpR",
     source: ["CTRL_expressions_eyeBlinkR", "CTRL_expressions_eyeLookUpR"],
     target: "C_BlinkR_LookUpR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkL_SquintInnerL",
     source: ["CTRL_expressions_eyeBlinkL", "CTRL_expressions_eyeSquintInnerL"],
     target: "C_BlinkL_SquintInnerL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkR_SquintInnerR",
     source: ["CTRL_expressions_eyeBlinkR", "CTRL_expressions_eyeSquintInnerR"],
     target: "C_BlinkR_SquintInnerR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkL_CheekRaiseL",
     source: ["CTRL_expressions_eyeBlinkL", "CTRL_expressions_eyeCheekRaiseL"],
     target: "C_BlinkL_CheekRaiseL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkL_CheekRaiseR",
     source: ["CTRL_expressions_eyeBlinkR", "CTRL_expressions_eyeCheekRaiseR"],
     target: "C_BlinkR_CheekRaiseR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkL_LookLeftL",
     source: ["CTRL_expressions_eyeBlinkL", "CTRL_expressions_eyeLookLeftL"],
     target: "C_BlinkL_LookLeftL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkR_LookLeftR",
     source: ["CTRL_expressions_eyeBlinkR", "CTRL_expressions_eyeLookLeftR"],
     target: "C_BlinkR_LookLeftR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkL_LookRightL",
     source: ["CTRL_expressions_eyeBlinkL", "CTRL_expressions_eyeLookRightL"],
     target: "C_BlinkL_LookRightL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkR_LookRightR",
     source: ["CTRL_expressions_eyeBlinkR", "CTRL_expressions_eyeLookRightR"],
     target: "C_BlinkR_LookRightR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkL_SquintInnerL_CheekRaiseL",
@@ -246,10 +132,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_BlinkL_SquintInnerL_CheekRaiseL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "BlinkR_SquintInnerR_CheekRaiseR",
@@ -260,10 +142,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_BlinkR_SquintInnerR_CheekRaiseR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== EYE WIDEN COMBINATIONS ==========
@@ -272,20 +150,12 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     source: ["CTRL_expressions_eyeLookDownL", "CTRL_expressions_eyeWidenL"],
     target: "C_WidenL_LookDownL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "WidenR_LookDownR",
     source: ["CTRL_expressions_eyeLookDownR", "CTRL_expressions_eyeWidenR"],
     target: "C_WidenR_LookDownR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== CHEEK & SQUINT COMBINATIONS ==========
@@ -297,10 +167,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CheekRaiseL_SquintInnerL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CheekRaiseR_SquintInnerR",
@@ -310,10 +176,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CheekRaiseR_SquintInnerR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== CHEEK BLOW ==========
@@ -325,10 +187,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CheekBlowL_CheekBlowR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== CHEEK RAISE & CORNER PULL ==========
@@ -340,10 +198,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CheekRaiseL_CornerPullL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CheekRaiseR_MouthCornerPullR",
@@ -353,10 +207,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CheekRaiseR_CornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== NOSE WRINKLE & UPPER LIP ==========
@@ -368,10 +218,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_WrinkleL_UpperLipRaiseL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "WrinkleR_UpperLipRaiseR",
@@ -381,10 +227,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_WrinkleR_UpperLipRaiseR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "WrinkleL_MouthCornerPullL",
@@ -394,10 +236,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_WrinkleL_MouthCornerPullL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "WrinkleR_MouthCornerPullR",
@@ -407,10 +245,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_WrinkleR_MouthCornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== CORNER PULL COMBINATIONS ==========
@@ -422,10 +256,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullL_CornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullL_LowerLipDepressL",
@@ -435,10 +265,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullL_LowerLipDepressL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullR_LowerLipDepressR",
@@ -448,10 +274,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullR_LowerLipDepressR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0.009009 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullL_UpperLipRaiseL",
@@ -461,10 +283,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullL_UpperLipRaiseL",
     mode: "Add",
-    curve: [
-      { time: 0, value: -0.003497 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullR_UpperLipRaiseR",
@@ -474,10 +292,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullR_UpperLipRaiseR",
     mode: "Add",
-    curve: [
-      { time: 0, value: -0.003497 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullL_StretchL",
@@ -487,10 +301,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullL_StretchL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullR_StretchR",
@@ -500,10 +310,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullR_StretchR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchL_CornerPullL_LowerLipDepressL",
@@ -514,10 +320,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchL_CornerPullL_LowerLipDepressL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchR_CornerPullR_LowerLipDepressR",
@@ -528,10 +330,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchR_CornerPullR_LowerLipDepressR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullL_DimpleL",
@@ -541,10 +339,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullL_DimpleL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullR_DimpleR",
@@ -554,10 +348,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullR_DimpleR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullL_SharpCornerPullL",
@@ -566,11 +356,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthSharpCornerPullL",
     ],
     target: "C_CornerPullL_SharpCornerPullL",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "CornerPullR_SharpCornerPullR",
@@ -579,11 +365,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthSharpCornerPullR",
     ],
     target: "C_CornerPullR_SharpCornerPullR",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
 
   // ========== FUNNEL & CORNER PULL ==========
@@ -595,10 +377,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelUL_CornerPullL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelUR_CornerPullR",
@@ -608,10 +386,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelUR_CornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelDL_CornerPullL",
@@ -621,10 +395,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelDL_CornerPullL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelDR_CornerPullR",
@@ -634,10 +404,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelDR_CornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== LIPS PURSE & CORNER PULL ==========
@@ -649,10 +415,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseUL_CornerPullL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseUR_CornerPullR",
@@ -662,10 +424,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseUR_CornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDL_CornerPullL",
@@ -675,10 +433,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseDL_CornerPullL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDR_CornerPullR",
@@ -688,10 +442,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseDR_CornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelUL_LipsPurseUL_CornerPullL",
@@ -702,10 +452,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelUL_LipsPurseUL_CornerPullL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelUR_LipsPurseUR_CornerPullR",
@@ -716,10 +462,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelUR_LipsPurseUR_CornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelDL_LipsPurseDL_CornerPullL",
@@ -730,10 +472,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelDL_LipsPurseDL_CornerPullL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelDR_LipsPurseDR_CornerPullR",
@@ -744,10 +482,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelDR_LipsPurseDR_CornerPullR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== LIPS PURSE & FUNNEL ==========
@@ -759,10 +493,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseUL_FunnelUL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseUR_FunnelUR",
@@ -772,10 +502,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseUR_FunnelUR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDL_FunnelDL",
@@ -785,10 +511,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseDL_FunnelDL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDR_FunnelDR",
@@ -798,10 +520,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseDR_FunnelDR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== FUNNEL & CHIN RAISE ==========
@@ -813,10 +531,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelUL_ChinRaiseUL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelUR_ChinRaiseUR",
@@ -826,10 +540,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelUR_ChinRaiseUR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== LIPS PURSE & LIPS TOWARDS ==========
@@ -841,10 +551,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseUL_LipsTowardsUL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseUR_LipsTowardsUR",
@@ -854,10 +560,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseUR_LipsTowardsUR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDL_LipsTowardsDL",
@@ -867,10 +569,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseDL_LipsTowardsDL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDR_LipsTowardsDR",
@@ -880,10 +578,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseDR_LipsTowardsDR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseUL_LipsTowardsUL_FunnelUL",
@@ -894,10 +588,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseUL_LipsTowardsUL_FunnelUL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseUR_LipsTowardsUR_FunnelUR",
@@ -908,10 +598,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseUR_LipsTowardsUR_FunnelUR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDL_LipsTowardsDL_FunnelDL",
@@ -922,10 +608,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseDL_LipsTowardsDL_FunnelDL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDR_LipsTowardsDR_FunnelDR",
@@ -936,10 +618,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LipsPurseDR_LipsTowardsDR_FunnelDR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== LIPS PURSE & LIPS TOGETHER ==========
@@ -950,11 +628,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthLipsTogetherUL",
     ],
     target: "C_LipsPurseUL_LipsTogetherUL",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "LipsPurseUR_LipsTogetherUR",
@@ -963,11 +637,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthLipsTogetherUR",
     ],
     target: "C_LipsPurseUR_LipsTogetherUR",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "LipsPurseDL_LipsTogetherDL",
@@ -976,11 +646,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthLipsTogetherDL",
     ],
     target: "C_LipsPurseDL_LipsTogetherDL",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "LipsPurseDR_LipsTogetherDR",
@@ -989,11 +655,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthLipsTogetherDR",
     ],
     target: "C_LipsPurseDR_LipsTogetherDR",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
 
   // ========== FUNNEL & UPPER/LOWER LIP ==========
@@ -1004,11 +666,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthUpperLipRaiseL",
     ],
     target: "C_FunnelUL_UpperLipRaiseL",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "FunnelUR_UpperLipRaiseR",
@@ -1017,11 +675,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthUpperLipRaiseR",
     ],
     target: "C_FunnelUR_UpperLipRaiseR",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "FunnelDL_LowerLipDepressL",
@@ -1030,11 +684,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthLowerLipDepressL",
     ],
     target: "C_FunnelDL_LowerLipDepressL",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "FunnelDR_LowerLipDepressR",
@@ -1043,11 +693,7 @@ export const METAHUMAN_TO_CC5_MAPPING = [
       "CTRL_expressions_mouthLowerLipDepressR",
     ],
     target: "C_FunnelDR_LowerLipDepressR",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
 
   // ========== FUNNEL & LIPS TOWARDS ==========
@@ -1059,10 +705,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelUL_LipsTowardsUL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelUR_LipsTowardsUR",
@@ -1072,10 +714,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelUR_LipsTowardsUR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelDL_LipsTowardsDL",
@@ -1085,10 +723,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelDL_LipsTowardsDL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "FunnelDR_LipsTowardsDR",
@@ -1098,10 +732,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_FunnelDR_LipsTowardsDR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== STRETCH COMBINATIONS ==========
@@ -1113,10 +743,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchL_LowerLipDepressL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchR_LowerLipDepressR",
@@ -1126,10 +752,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchR_LowerLipDepressR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchL_StretchR",
@@ -1139,10 +761,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchL_StretchR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchL_LowerLipBite_L",
@@ -1152,10 +770,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchL_LowerLipBite_L",
     mode: "Add",
-    curve: [
-      { time: 0, value: -0.003497 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchR_LowerLipBite_R",
@@ -1165,10 +779,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchR_LowerLipBite_R",
     mode: "Add",
-    curve: [
-      { time: 0, value: -0.003497 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== JAW OPEN COMBINATIONS ==========
@@ -1177,20 +787,12 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     source: ["CTRL_expressions_jawOpen", "CTRL_expressions_mouthCornerPullL"],
     target: "C_CornerPullL_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullR_JawOpen",
     source: ["CTRL_expressions_jawOpen", "CTRL_expressions_mouthCornerPullR"],
     target: "C_CornerPullR_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullL_JawOpen_LowerLipDepressL",
@@ -1201,10 +803,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullL_JawOpen_LowerLipDepressL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullR_JawOpen_LowerLipDepressR",
@@ -1215,50 +813,30 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullR_JawOpen_LowerLipDepressR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LipsPurseDL_JawOpen",
     source: ["CTRL_expressions_mouthLipsPurseDL", "CTRL_expressions_jawOpen"],
     target: "C_LipsPurseDL_JawOpen",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "LipsPurseDR_JawOpen",
     source: ["CTRL_expressions_mouthLipsPurseDR", "CTRL_expressions_jawOpen"],
     target: "C_LipsPurseDR_JawOpen",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "LipsPurseUL_JawOpen",
     source: ["CTRL_expressions_mouthLipsPurseUL", "CTRL_expressions_jawOpen"],
     target: "C_LipsPurseUL_JawOpen",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "LipsPurseUR_JawOpen",
     source: ["CTRL_expressions_mouthLipsPurseUR", "CTRL_expressions_jawOpen"],
     target: "C_LipsPurseUR_JawOpen",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "StretchL_LowerLipDepressL_JawOpen",
@@ -1269,10 +847,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchL_LowerLipDepressL_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchR_LowerLipDepressR_JawOpen",
@@ -1283,30 +857,18 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_StretchR_LowerLipDepressR_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchL_JawOpen",
     source: ["CTRL_expressions_mouthStretchL", "CTRL_expressions_jawOpen"],
     target: "C_StretchL_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "StretchR_JawOpen",
     source: ["CTRL_expressions_mouthStretchR", "CTRL_expressions_jawOpen"],
     target: "C_StretchR_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== LIP DEPRESS & RAISE ==========
@@ -1318,10 +880,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_LowerLipDepressL_LowerLipDepressR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "UpperLipRaiseL_UpperLipRaiseR",
@@ -1331,10 +889,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_UpperLipRaiseL_UpperLipRaiseR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== COMPLEX JAW OPEN COMBINATIONS ==========
@@ -1347,10 +901,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullL_StretchL_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullR_StretchR_JawOpen",
@@ -1361,10 +911,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullR_StretchR_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullRL_StretchRL_JawOpen",
@@ -1377,10 +923,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullRL_StretchRL_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "CornerPullRL_StretchRL_JawOpen_LowerLipDepressRL",
@@ -1395,10 +937,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_CornerPullRL_StretchRL_JawOpen_LowerLipDepressRL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== LIP BITE & JAW OPEN ==========
@@ -1407,40 +945,24 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     source: ["CTRL_expressions_mouthUpperLipBiteL", "CTRL_expressions_jawOpen"],
     target: "C_UpperLipBiteL_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "UpperLipBiteR_JawOpen",
     source: ["CTRL_expressions_mouthUpperLipBiteR", "CTRL_expressions_jawOpen"],
     target: "C_UpperLipBiteR_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LowerLipBiteL_JawOpen",
     source: ["CTRL_expressions_mouthLowerLipBiteL", "CTRL_expressions_jawOpen"],
     target: "C_LowerLipBiteL_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "LowerLipBiteR_JawOpen",
     source: ["CTRL_expressions_mouthLowerLipBiteR", "CTRL_expressions_jawOpen"],
     target: "C_LowerLipBiteR_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== PRESS & JAW OPEN ==========
@@ -1448,41 +970,25 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     name: "PressUL_JawOpen",
     source: ["CTRL_expressions_mouthPressUL", "CTRL_expressions_jawOpen"],
     target: "C_PressUL_JawOpen",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "PressUR_JawOpen",
     source: ["CTRL_expressions_mouthPressUR", "CTRL_expressions_jawOpen"],
     target: "C_PressUR_JawOpen",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "PressDL_JawOpen",
     source: ["CTRL_expressions_mouthPressDL", "CTRL_expressions_jawOpen"],
     target: "C_PressDL_JawOpen",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
   {
     name: "PressDR_JawOpen",
     source: ["CTRL_expressions_mouthPressDR", "CTRL_expressions_jawOpen"],
     target: "C_PressDR_JawOpen",
-    mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 0.5 },
-    ], // Reduced from 1.0 to 0.7 (70% intensity)
+    mode: "Add", // Reduced from 1.0 to 0.7 (70% intensity)
   },
 
   // ========== DIMPLE COMBINATIONS ==========
@@ -1494,10 +1000,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_DimpleL_UpperLipRaiseL",
     mode: "Add",
-    curve: [
-      { time: 0, value: -0.003497 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "DimpleR_UpperLipRaiseR",
@@ -1507,10 +1009,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_DimpleR_UpperLipRaiseR",
     mode: "Add",
-    curve: [
-      { time: 0, value: -0.003497 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "DimpleL_LowerLipDepressL",
@@ -1520,10 +1018,6 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_DimpleL_LowerLipDepressL",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "DimpleR_LowerLipDepressR",
@@ -1533,30 +1027,18 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     ],
     target: "C_DimpleR_LowerLipDepressR",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "DimpleL_JawOpen",
     source: ["CTRL_expressions_jawOpen", "CTRL_expressions_mouthDimpleL"],
     target: "C_DimpleL_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "DimpleR_JawOpen",
     source: ["CTRL_expressions_jawOpen", "CTRL_expressions_mouthDimpleR"],
     target: "C_DimpleR_JawOpen",
     mode: "Add",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 
   // ========== LIMIT MODE MAPPINGS ==========
@@ -1565,110 +1047,66 @@ export const METAHUMAN_TO_CC5_MAPPING = [
     source: ["CTRL_expressions_eyeBlinkL"],
     target: "CTRL_expressions_eyeLidPressL",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "EyeLidPress_Blink_R",
     source: ["CTRL_expressions_eyeBlinkR"],
     target: "CTRL_expressions_eyeLidPressR",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "NoseWinkleUpper_L",
     source: ["CTRL_expressions_noseWrinkleL"],
     target: "CTRL_expressions_noseWrinkleUpperL",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "NoseWinkleUpper_R",
     source: ["CTRL_expressions_noseWrinkleR"],
     target: "CTRL_expressions_noseWrinkleUpperR",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "MouthStretchLipClose_Stretch_L",
     source: ["CTRL_expressions_mouthStretchL"],
     target: "CTRL_expressions_mouthStretchLipsCloseL",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "MouthStretchLipClose_Stretch_R",
     source: ["CTRL_expressions_mouthStretchR"],
     target: "CTRL_expressions_mouthStretchLipsCloseR",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "JawOpenExtreme_JawOpen",
     source: ["CTRL_expressions_jawOpen"],
     target: "CTRL_expressions_jawOpenExtreme",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "MouthLipsTogetherUL_JawOpen",
     source: ["CTRL_expressions_jawOpen"],
     target: "CTRL_expressions_mouthLipsTogetherUL",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "MouthLipsTogetherUR_JawOpen",
     source: ["CTRL_expressions_jawOpen"],
     target: "CTRL_expressions_mouthLipsTogetherUR",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "MouthLipsTogetherDL_JawOpen",
     source: ["CTRL_expressions_jawOpen"],
     target: "CTRL_expressions_mouthLipsTogetherDL",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
   {
     name: "MouthLipsTogetherDR_JawOpen",
     source: ["CTRL_expressions_jawOpen"],
     target: "CTRL_expressions_mouthLipsTogetherDR",
     mode: "Limit",
-    curve: [
-      { time: 0, value: 0 },
-      { time: 1, value: 1 },
-    ],
   },
 ];
 
@@ -1688,7 +1126,7 @@ export function convertMetaHumanToCC5(metahumanBlendshapes, options = {}) {
   const limitedBlendshapes = { ...metahumanBlendshapes };
 
   METAHUMAN_TO_CC5_MAPPING.forEach((mapping) => {
-    const { source, target, mode, curve } = mapping;
+    const { source, target, mode } = mapping;
 
     if (mode === "Limit") {
       // Limit mode: source[0] sets the maximum value for the target
@@ -1696,15 +1134,10 @@ export function convertMetaHumanToCC5(metahumanBlendshapes, options = {}) {
       // Example: eyeBlinkL limits eyeLidPressL, so eyeLidPressL can't exceed eyeBlinkL value
       const limitValue = metahumanBlendshapes[source[0]] || 0;
 
-      // Apply curve evaluation if curve is defined
-      let finalLimit = limitValue;
-      if (curve && curve.length > 0) {
-        finalLimit = evaluateCurve(curve, limitValue);
-      }
-
-      // Cap the target value by the limit
+      // Cap the target value by the limit (max 1.0)
       // If target doesn't exist yet, set it to the limit
       // If target exists, take the minimum of current value and limit
+      const finalLimit = Math.min(limitValue, 1.0);
       if (limitedBlendshapes[target] !== undefined) {
         limitedBlendshapes[target] = Math.min(
           limitedBlendshapes[target],
@@ -1720,7 +1153,7 @@ export function convertMetaHumanToCC5(metahumanBlendshapes, options = {}) {
   const cc5Blendshapes = {};
 
   METAHUMAN_TO_CC5_MAPPING.forEach((mapping) => {
-    const { source, target, mode, curve } = mapping;
+    const { source, target, mode } = mapping;
 
     if (mode === "Add") {
       // Add mode: multiply all source values together using LIMITED values
@@ -1730,10 +1163,8 @@ export function convertMetaHumanToCC5(metahumanBlendshapes, options = {}) {
         return product * sourceValue;
       }, 1);
 
-      // Apply curve evaluation if curve is defined
-      if (curve && curve.length > 0) {
-        value = evaluateCurve(curve, value);
-      }
+      // Clamp to max 1.0
+      value = Math.min(value, 1.0);
 
       // Set or accumulate the target blendshape value
       // If target already exists, multiply them (Unreal uses multiplication for combinations)
