@@ -19,9 +19,9 @@ export const CONVAI_CONFIG = {
  */
 export const ANIMATION_CONFIG = {
   FPS: 60, // Blendshape playback framerate (matches Convai server)
-  LIPSYNC_LERP_SPEED: 0.5, // Per-frame smoothing for blendshapes (0.1 = very smooth/laggy, 0.5 = responsive, 1.0 = instant/no smoothing)
-  JAW_LERP_SPEED: 0.5, // Per-frame smoothing for jaw bone rotation (separate from lip blendshapes for smoother jaw movement)
-  FADE_OUT_LERP_SPEED: 0.2, // Per-frame smoothing when fading out to neutral (slower = smoother fade-out)
+  LIPSYNC_LERP_SPEED: 1, // Per-frame smoothing for blendshapes (0.1 = very smooth/laggy, 0.5 = responsive, 1.0 = instant/no smoothing)
+  JAW_LERP_SPEED: 1, // Per-frame smoothing for jaw bone rotation (separate from lip blendshapes for smoother jaw movement)
+  FADE_OUT_LERP_SPEED: 0.3, // Per-frame smoothing when fading out to neutral (slower = smoother fade-out)
   BLINK_MIN_INTERVAL: 1000, // Minimum time between blinks (ms)
   BLINK_MAX_INTERVAL: 5000, // Maximum time between blinks (ms)
   BLINK_DURATION: 200, // How long a blink lasts (ms)

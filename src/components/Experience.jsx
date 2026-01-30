@@ -1,6 +1,4 @@
 import { OrbitControls } from "@react-three/drei";
-// import { Aaron } from "./characters/Aaron";
-
 import * as THREE from "three";
 import { useEffect, useRef } from "react";
 import { Aaron } from "./characters/Aaron";

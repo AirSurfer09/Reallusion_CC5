@@ -72,18 +72,12 @@ export function useMhaHeadTracking(
   useEffect(() => {
     if (!skeletonRoot) return;
 
-    console.log(
-      "[useMhaHeadTracking] Searching for bones in skeleton root:",
-      skeletonRoot.name,
-    );
-
     skeletonRoot.traverse((child) => {
       if (child.isBone) {
         const lowerName = child.name.toLowerCase();
 
         // Match head bone (case-insensitive)
         if (lowerName === "head" || lowerName === "cc_base_head") {
-          console.log("[useMhaHeadTracking] Found head bone:", child.name);
           headBoneRef.current = child;
           // Capture rest pose quaternion
           restPose.current.head.copy(child.quaternion);
@@ -93,7 +87,6 @@ export function useMhaHeadTracking(
           lowerName === "cc_base_necktwist01" ||
           lowerName === "necktwist01"
         ) {
-          console.log("[useMhaHeadTracking] Found neck1 bone:", child.name);
           neckBone1Ref.current = child;
           restPose.current.neck1.copy(child.quaternion);
         }
@@ -102,24 +95,14 @@ export function useMhaHeadTracking(
           lowerName === "cc_base_necktwist02" ||
           lowerName === "necktwist02"
         ) {
-          console.log("[useMhaHeadTracking] Found neck2 bone:", child.name);
           neckBone2Ref.current = child;
           restPose.current.neck2.copy(child.quaternion);
         }
         // Match spine bone (case-insensitive)
         else if (lowerName === "cc_base_spine02" || lowerName === "spine02") {
-          console.log("[useMhaHeadTracking] Found spine bone:", child.name);
           spineBoneRef.current = child;
         }
       }
-    });
-
-    // Log final status
-    console.log("[useMhaHeadTracking] Bone search complete:", {
-      head: headBoneRef.current?.name || "NOT FOUND",
-      neck1: neckBone1Ref.current?.name || "NOT FOUND",
-      neck2: neckBone2Ref.current?.name || "NOT FOUND",
-      spine: spineBoneRef.current?.name || "NOT FOUND",
     });
   }, [skeletonRoot]);
 
@@ -232,7 +215,11 @@ export function useMhaHeadTracking(
     // Update tracking weight: lerp towards speakingWeight when speaking / idleWeight when not speaking (if in range), 0 when out
     // Speaking: higher tracking influence (default 0.7 = 70% tracking, 30% animation)
     // Not speaking: moderate tracking influence (default 0.5 = 50% tracking, 50% animation)
-    const targetWeight = isInTrackingRange ? (isSpeaking ? options.speakingWeight : options.idleWeight) : 0;
+    const targetWeight = isInTrackingRange
+      ? isSpeaking
+        ? options.speakingWeight
+        : options.idleWeight
+      : 0;
     trackingWeight.current +=
       (targetWeight - trackingWeight.current) * options.lerpSpeed;
 

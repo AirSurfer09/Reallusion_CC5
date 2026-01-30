@@ -292,14 +292,6 @@ export const useMetahumanLipsync = ({
       if (lowerTeethBoneRef.current && lowerTeethBaseYRef.current === null) {
         lowerTeethBaseYRef.current = lowerTeethBoneRef.current.position.y;
         lowerTeethBaseXRef.current = lowerTeethBoneRef.current.position.x;
-        console.log(
-          "[MetahumanLipsync] Lower teeth bone found:",
-          lowerTeethBoneRef.current.name,
-          "Base Y:",
-          lowerTeethBaseYRef.current,
-          "Base X:",
-          lowerTeethBaseXRef.current,
-        );
       }
     }
 
@@ -310,12 +302,6 @@ export const useMetahumanLipsync = ({
         characterRef.current.getObjectByName("cc_base_teeth01");
       if (upperTeethBoneRef.current && upperTeethBaseYRef.current === null) {
         upperTeethBaseYRef.current = upperTeethBoneRef.current.position.y;
-        console.log(
-          "[MetahumanLipsync] Upper teeth bone found:",
-          upperTeethBoneRef.current.name,
-          "Base Y:",
-          upperTeethBaseYRef.current,
-        );
       }
     }
 

@@ -179,6 +179,31 @@ export const Aaron = React.forwardRef(
       boneNames: metahumanBones, // Custom bone configuration for MetaHuman (lowercase)
     });
 
+    // Reset all face morph targets to 0 when starting to speak (only once per speech start)
+    React.useEffect(() => {
+      if (isPlaying && !previousPlayingState.current && faceMeshRef.current) {
+        console.log(
+          "[Aaron] Resetting CC_Base_Body morph targets before lipsync",
+        );
+
+        // Reset all morph target influences to 0 on the face mesh (CC_Base_Body)
+        if (faceMeshRef.current.morphTargetInfluences) {
+          for (
+            let i = 0;
+            i < faceMeshRef.current.morphTargetInfluences.length;
+            i++
+          ) {
+            faceMeshRef.current.morphTargetInfluences[i] = 0;
+          }
+          console.log(
+            "[Aaron] Reset",
+            faceMeshRef.current.morphTargetInfluences.length,
+            "morph targets",
+          );
+        }
+      }
+    }, [isPlaying]); // Only triggers when isPlaying changes
+
     // Use the head tracking hook - tracks camera position
     // Tracking strength: more prominent when speaking
     useMhaHeadTracking(
@@ -200,11 +225,6 @@ export const Aaron = React.forwardRef(
       const idleAction = actions["Idle_Motion"];
       const talkAction = actions["Talk_Motion"];
 
-      // Log available animations for debugging
-      if (Object.keys(actions).length > 0) {
-        console.log("[Aaron] Available animations:", Object.keys(actions));
-      }
-
       if (!idleAction || !talkAction) {
         console.warn("[Aaron] Animations not found:", {
           idle: !!idleAction,
@@ -217,22 +237,20 @@ export const Aaron = React.forwardRef(
       // Configure and start both animations
       idleAction.setLoop(THREE.LoopRepeat, Infinity);
       talkAction.setLoop(THREE.LoopRepeat, Infinity);
-      
+
       // Start idle animation at full weight
       idleAction.reset();
       idleAction.play();
       idleAction.setEffectiveWeight(1);
       currentIdleWeight.current = 1;
       targetIdleWeight.current = 1;
-      
+
       // Start talk animation at zero weight
       talkAction.reset();
       talkAction.play();
       talkAction.setEffectiveWeight(0);
       currentTalkWeight.current = 0;
       targetTalkWeight.current = 0;
-      
-      console.log("[Aaron] Animations initialized and playing");
 
       // Cleanup function
       return () => {
@@ -245,13 +263,11 @@ export const Aaron = React.forwardRef(
     React.useEffect(() => {
       if (isPlaying && !previousPlayingState.current) {
         // Start talking
-        console.log("[Aaron] Starting talk animation");
         targetIdleWeight.current = 0;
         targetTalkWeight.current = 1;
         previousPlayingState.current = true;
       } else if (!isPlaying && previousPlayingState.current) {
         // Stop talking
-        console.log("[Aaron] Stopping talk animation");
         targetIdleWeight.current = 1;
         targetTalkWeight.current = 0;
         previousPlayingState.current = false;
@@ -269,9 +285,11 @@ export const Aaron = React.forwardRef(
 
       // Lerp weights smoothly (0.1 = smooth transition speed)
       const lerpSpeed = 0.1;
-      
-      currentIdleWeight.current += (targetIdleWeight.current - currentIdleWeight.current) * lerpSpeed;
-      currentTalkWeight.current += (targetTalkWeight.current - currentTalkWeight.current) * lerpSpeed;
+
+      currentIdleWeight.current +=
+        (targetIdleWeight.current - currentIdleWeight.current) * lerpSpeed;
+      currentTalkWeight.current +=
+        (targetTalkWeight.current - currentTalkWeight.current) * lerpSpeed;
 
       // Apply weights
       idleAction.setEffectiveWeight(currentIdleWeight.current);
@@ -291,29 +309,6 @@ export const Aaron = React.forwardRef(
         meshRefProp.current = faceMeshRef.current;
       }
     }, [meshRefProp]);
-
-    // Debug: Log available nodes to find bone structure
-    React.useEffect(() => {
-      if (nodes.root) {
-        console.log("[Aaron] Available bones:", Object.keys(nodes));
-        console.log("[Aaron] Root bone:", nodes.root);
-
-        // Traverse skeleton to find jaw and head bones
-        nodes.root.traverse((bone) => {
-          if (bone.type === "Bone") {
-            if (bone.name.toLowerCase().includes("jaw")) {
-              console.log("[Aaron] Found jaw bone:", bone.name);
-            }
-            if (bone.name.toLowerCase().includes("head")) {
-              console.log("[Aaron] Found head bone:", bone.name);
-            }
-            if (bone.name.toLowerCase().includes("tongue")) {
-              console.log("[Aaron] Found tongue bone:", bone.name);
-            }
-          }
-        });
-      }
-    }, [nodes]);
 
     // Safety check: ensure all required nodes exist
     if (!nodes.root || !nodes.CC_Base_Body) {
