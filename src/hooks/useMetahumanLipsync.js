@@ -11,9 +11,7 @@ import {
   ARKIT_TO_CC_EXTENDED,
   ARKIT_TO_RPM,
   ARKIT_TO_ARKIT,
-  METAHUMAN_TO_CC5_MAPPING,
   convertMetaHumanToCC5,
-  convertMetaHumanToCC5Direct,
   getBonePreset,
 } from "../constants";
 
@@ -44,7 +42,7 @@ const ARKIT_ORDER_61 = ARKIT_BLENDSHAPES;
 const JAW_OPEN_INDEX_61 = 17;
 const JAW_OPEN_INDEX_52 = 24;
 const TONGUE_OUT_INDEX = 51;
-const FRAME_OFFSET = 15;
+const FRAME_OFFSET = 3;
 
 /**
  * Mapping preset configurations
@@ -422,9 +420,34 @@ export const useMetahumanLipsync = ({
     // Use target frame but clamp to available frames
     const frameIndex = Math.min(targetFrameIndex, frames.length - 1);
 
-    // Check if we're at the end of available frames
-    if (frameIndex >= frames.length - 1) {
-      if (state.isDraining) {
+    // Get current frame with interpolation when ahead of queue
+    let currentFrame;
+    
+    // NEW: Frame Interpolation - smooth continuation when waiting for new frames
+    if (targetFrameIndex >= frames.length - 1 && frames.length >= 2 && !state.isDraining) {
+      // We're ahead of available frames - interpolate between last two frames
+      // This prevents stuttering/freezing while waiting for network data
+      const lastFrame = frames[frames.length - 1];
+      const secondLastFrame = frames[frames.length - 2];
+      
+      // Calculate how far we are past the last frame (0 = at last frame, 1+ = beyond)
+      const extraFrames = targetFrameIndex - (frames.length - 1);
+      // Blend factor capped at 1.0 to avoid over-extrapolation
+      const blendFactor = Math.min(extraFrames, 1.0);
+      
+      // Interpolate frame data for smooth continuation
+      currentFrame = interpolateFrames(secondLastFrame, lastFrame, blendFactor);
+      
+      // Optional: Log when interpolating (useful for debugging)
+      if (extraFrames > 0 && Math.floor(currentTime) % 1000 < 16) {
+        console.log(`[Lipsync] Interpolating: ${extraFrames.toFixed(1)} frames ahead, blend: ${blendFactor.toFixed(2)}`);
+      }
+    } else {
+      // Normal case: use frame from queue
+      currentFrame = frames[frameIndex];
+      
+      // Check if we're at the end and draining
+      if (frameIndex >= frames.length - 1 && state.isDraining) {
         state.isPlaying = false;
         state.isDraining = false;
         state.currentFrameIndex = 0;
@@ -440,9 +463,6 @@ export const useMetahumanLipsync = ({
     if (frameIndex < 0 || frameIndex >= frames.length) {
       return;
     }
-
-    // Get current frame
-    const currentFrame = frames[frameIndex];
 
     // Verify frame is valid (handle both array and object formats)
     const isValidFrame =
@@ -533,6 +553,54 @@ export const useMetahumanLipsync = ({
     sourceFormat: mappingConfig.sourceFormat,
   };
 };
+
+// ============================================================================
+// FRAME INTERPOLATION
+// ============================================================================
+
+/**
+ * Interpolate between two frames for smooth continuation when ahead of queue
+ * Handles both ARKit (array) and MetaHuman (object) formats
+ * 
+ * @param {Array|Object} frameA - First frame (earlier)
+ * @param {Array|Object} frameB - Second frame (later)
+ * @param {number} t - Blend factor (0 = frameA, 1 = frameB, >1 = extrapolate beyond frameB)
+ * @returns {Array|Object} - Interpolated frame
+ */
+function interpolateFrames(frameA, frameB, t) {
+  if (Array.isArray(frameA)) {
+    // ARKit format - interpolate array values
+    const result = new Array(frameA.length);
+    for (let i = 0; i < frameA.length; i++) {
+      const valA = frameA[i] || 0;
+      const valB = frameB[i] || 0;
+      // Linear interpolation: A + (B - A) * t
+      result[i] = valA + (valB - valA) * t;
+    }
+    return result;
+  } else if (typeof frameA === "object" && frameA !== null) {
+    // MetaHuman format - interpolate object values
+    const result = {};
+    
+    // Get all unique keys from both frames
+    const allKeys = new Set([
+      ...Object.keys(frameA),
+      ...Object.keys(frameB)
+    ]);
+    
+    allKeys.forEach(key => {
+      const valA = frameA[key] || 0;
+      const valB = frameB[key] || 0;
+      // Linear interpolation: A + (B - A) * t
+      result[key] = valA + (valB - valA) * t;
+    });
+    
+    return result;
+  }
+  
+  // Fallback: return frameB if format is unexpected
+  return frameB;
+}
 
 // ============================================================================
 // APPLY FUNCTIONS
