@@ -13,6 +13,7 @@
  * MetaHuman blendshapes to CC5 format.
  */
 
+
 /**
  * Combined blendshape mappings
  * Maps MetaHuman source channels to CC5 target channels
@@ -1120,41 +1121,38 @@ export const METAHUMAN_TO_CC5_MAPPING = [
  */
 export function convertMetaHumanToCC5(metahumanBlendshapes, options = {}) {
   const { teethDownOffset = 0 } = options;
-
+  
   // FIRST PASS: Apply Limit mode to cap/constrain the input values
   // Create a modified copy of the input blendshapes with limited values
   const limitedBlendshapes = { ...metahumanBlendshapes };
-
+  
   METAHUMAN_TO_CC5_MAPPING.forEach((mapping) => {
     const { source, target, mode } = mapping;
-
+    
     if (mode === "Limit") {
       // Limit mode: source[0] sets the maximum value for the target
       // This caps certain CTRL_expressions_* values before they're used in Add mode
       // Example: eyeBlinkL limits eyeLidPressL, so eyeLidPressL can't exceed eyeBlinkL value
       const limitValue = metahumanBlendshapes[source[0]] || 0;
-
+      
       // Cap the target value by the limit (max 1.0)
       // If target doesn't exist yet, set it to the limit
       // If target exists, take the minimum of current value and limit
       const finalLimit = Math.min(limitValue, 1.0);
       if (limitedBlendshapes[target] !== undefined) {
-        limitedBlendshapes[target] = Math.min(
-          limitedBlendshapes[target],
-          finalLimit,
-        );
+        limitedBlendshapes[target] = Math.min(limitedBlendshapes[target], finalLimit);
       } else {
         limitedBlendshapes[target] = finalLimit;
       }
     }
   });
-
+  
   // SECOND PASS: Apply Add mode using the LIMITED values to generate corrective blendshapes
   const cc5Blendshapes = {};
-
+  
   METAHUMAN_TO_CC5_MAPPING.forEach((mapping) => {
     const { source, target, mode } = mapping;
-
+    
     if (mode === "Add") {
       // Add mode: multiply all source values together using LIMITED values
       // This creates corrective blendshapes (C_*) from combinations of CTRL_expressions_*
@@ -1162,10 +1160,10 @@ export function convertMetaHumanToCC5(metahumanBlendshapes, options = {}) {
         const sourceValue = limitedBlendshapes[sourceKey] || 0;
         return product * sourceValue;
       }, 1);
-
+      
       // Clamp to max 1.0
       value = Math.min(value, 1.0);
-
+      
       // Set or accumulate the target blendshape value
       // If target already exists, multiply them (Unreal uses multiplication for combinations)
       if (cc5Blendshapes[target] !== undefined) {

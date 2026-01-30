@@ -11,12 +11,14 @@ import {
   ARKIT_TO_CC_EXTENDED,
   ARKIT_TO_RPM,
   ARKIT_TO_ARKIT,
+  METAHUMAN_TO_CC5_MAPPING,
+  convertMetaHumanToCC5,
   convertMetaHumanToCC5Direct,
   getBonePreset,
 } from "../constants";
 
 // Import MetaHuman format from SDK (use relative path in local example)
-import { METAHUMAN_ORDER_251 } from "@convai/web-sdk";
+import { METAHUMAN_ORDER_251 } from "../../../../dist/lipsync-helpers/metahumanOrder251.js";
 
 /**
  * Time-Based Lipsync Configuration
@@ -243,7 +245,7 @@ export const useArkitLipsync = ({
   // Smoothed morph target values (for continuous per-frame lerping like head tracking)
   // This creates buttery smooth animation similar to head/pupil tracking
   const smoothedMorphValues = useRef(new Map()); // morphName -> currentSmoothedValue
-
+  
   // Idle animation blend weight (1.0 = full animation, 0.0 = full lipsync)
   const idleAnimationBlendWeight = useRef(1.0);
 
@@ -278,34 +280,20 @@ export const useArkitLipsync = ({
 
     // Find lower teeth bone (CC_Base_Teeth02)
     if (characterRef.current) {
-      lowerTeethBoneRef.current =
-        characterRef.current.getObjectByName("CC_Base_Teeth02");
+      lowerTeethBoneRef.current = characterRef.current.getObjectByName("CC_Base_Teeth02");
       if (lowerTeethBoneRef.current && lowerTeethBaseYRef.current === null) {
         lowerTeethBaseYRef.current = lowerTeethBoneRef.current.position.y;
         lowerTeethBaseXRef.current = lowerTeethBoneRef.current.position.x;
-        console.log(
-          "[Lipsync] Lower teeth bone found:",
-          lowerTeethBoneRef.current.name,
-          "Base Y:",
-          lowerTeethBaseYRef.current,
-          "Base X:",
-          lowerTeethBaseXRef.current,
-        );
+        console.log("[Lipsync] Lower teeth bone found:", lowerTeethBoneRef.current.name, "Base Y:", lowerTeethBaseYRef.current, "Base X:", lowerTeethBaseXRef.current);
       }
     }
 
     // Find upper teeth bone (CC_Base_Teeth01)
     if (characterRef.current) {
-      upperTeethBoneRef.current =
-        characterRef.current.getObjectByName("CC_Base_Teeth01");
+      upperTeethBoneRef.current = characterRef.current.getObjectByName("CC_Base_Teeth01");
       if (upperTeethBoneRef.current && upperTeethBaseYRef.current === null) {
         upperTeethBaseYRef.current = upperTeethBoneRef.current.position.y;
-        console.log(
-          "[Lipsync] Upper teeth bone found:",
-          upperTeethBoneRef.current.name,
-          "Base Y:",
-          upperTeethBaseYRef.current,
-        );
+        console.log("[Lipsync] Upper teeth bone found:", upperTeethBoneRef.current.name, "Base Y:", upperTeethBaseYRef.current);
       }
     }
 
@@ -351,9 +339,8 @@ export const useArkitLipsync = ({
     if (!state.isPlaying) {
       // Blend weight back to 1.0 when not speaking (animation takes over)
       const currentBlendWeight = idleAnimationBlendWeight.current;
-      idleAnimationBlendWeight.current =
-        currentBlendWeight + (1.0 - currentBlendWeight) * 0.15;
-
+      idleAnimationBlendWeight.current = currentBlendWeight + (1.0 - currentBlendWeight) * 0.15;
+      
       resetToNeutral(
         morphCache,
         smoothedMorphValues.current,
@@ -409,39 +396,37 @@ export const useArkitLipsync = ({
     // Target: 0.0 when speaking (lipsync takes over completely), 1.0 when idle (animation takes over)
     const targetBlendWeight = 0.0; // 0% animation = 100% lipsync control
     const currentBlendWeight = idleAnimationBlendWeight.current;
-    idleAnimationBlendWeight.current =
-      currentBlendWeight + (targetBlendWeight - currentBlendWeight) * 0.15;
+    idleAnimationBlendWeight.current = currentBlendWeight + (targetBlendWeight - currentBlendWeight) * 0.15;
 
     // Calculate target frame index using approximate 60fps
     // Slow down playback for the last few frames for smoother mouth close
     const SLOWDOWN_FRAME_COUNT = 10; // Number of frames to slow down
     const SLOWDOWN_SPEED_FACTOR = 0.35; // Speed multiplier for last frames (35% speed)
-
+    
     let effectiveElapsedTime = elapsedTimeSec;
-
+    
     // Calculate normal frame position
     const normalFramePos = elapsedTimeSec * TARGET_FPS + FRAME_OFFSET;
     const normalFrameIndex = Math.floor(normalFramePos);
-
+    
     // Check if we're in the slowdown zone (last N frames)
     const framesFromEnd = frames.length - normalFrameIndex;
     if (framesFromEnd <= SLOWDOWN_FRAME_COUNT && framesFromEnd > 0) {
       // Calculate how far into slowdown zone we are (0 = start of slowdown, 1 = last frame)
-      const slowdownProgress = 1 - framesFromEnd / SLOWDOWN_FRAME_COUNT;
-
+      const slowdownProgress = 1 - (framesFromEnd / SLOWDOWN_FRAME_COUNT);
+      
       // Apply progressive slowdown (gets slower as we approach the end)
-      const currentSpeedFactor =
-        1.0 - slowdownProgress * (1.0 - SLOWDOWN_SPEED_FACTOR);
+      const currentSpeedFactor = 1.0 - (slowdownProgress * (1.0 - SLOWDOWN_SPEED_FACTOR));
       effectiveElapsedTime = state.slowdownAdjustedTime || elapsedTimeSec;
       effectiveElapsedTime += delta * currentSpeedFactor;
       state.slowdownAdjustedTime = effectiveElapsedTime;
     } else {
       state.slowdownAdjustedTime = elapsedTimeSec;
     }
-
+    
     const exactFramePos = effectiveElapsedTime * TARGET_FPS + FRAME_OFFSET;
     const targetFrameIndex = Math.floor(exactFramePos);
-
+    
     // Calculate interpolation factor (fractional part of frame position)
     const frameInterpolation = exactFramePos - targetFrameIndex;
 
@@ -487,7 +472,7 @@ export const useArkitLipsync = ({
     // Interpolate between current and next frame for smooth transitions
     // TEMPORARILY DISABLED - Testing if interpolation causes stuttering
     let interpolatedFrame = currentFrame;
-
+    
     /*
     // Only interpolate if we have a valid next frame AND they're different frames
     const shouldInterpolate = 
@@ -772,10 +757,7 @@ function applyMetaHumanToCC5(
 
   // Apply jaw bone rotation (CC5 uses same bone structure as CC Extended)
   // Use CTRL_expressions_jawOpen for bone rotation (clamped to max 0.7, reduce by 0.1 only when >= 0.3)
-  const rawJawValue = Math.min(
-    metahumanBlendshapes["CTRL_expressions_jawOpen"] || 0,
-    0.7,
-  );
+  const rawJawValue = Math.min(metahumanBlendshapes["CTRL_expressions_jawOpen"] || 0, 0.7);
   const jawValue = rawJawValue < 0.3 ? rawJawValue : rawJawValue - 0.1; // Only subtract 0.1 when >= 0.3
   if (jawBone) {
     applyJawBoneSmooth(
@@ -819,7 +801,7 @@ function applyMetaHumanToCC5(
 /**
  * Apply morph target value with continuous per-frame smoothing (like head tracking)
  * This creates buttery smooth animation by lerping every frame, not just between frames
- *
+ * 
  * @param {Map} morphCache - Map of morph target names to mesh references
  * @param {Map} smoothedValues - Map of current smoothed values
  * @param {string} name - Morph target name
@@ -841,7 +823,7 @@ function applyMorphValueSmooth(
   // Performance optimization: Skip animation value reading when blend weight is near zero
   // During speech (blend weight ~0), we don't need to read animation values
   let blendedTarget;
-
+  
   if (animationBlendWeight < 0.01) {
     // Full lipsync control - no animation blending needed
     blendedTarget = targetValue;
@@ -849,11 +831,9 @@ function applyMorphValueSmooth(
     // Read the current animation morph value from the first target
     // (Animation system sets these values directly on the influences array)
     const animationValue = targets[0]?.influences[targets[0].index] || 0;
-
+    
     // Blend: animation value * weight + lipsync value * (1 - weight)
-    blendedTarget =
-      animationValue * animationBlendWeight +
-      targetValue * (1 - animationBlendWeight);
+    blendedTarget = animationValue * animationBlendWeight + targetValue * (1 - animationBlendWeight);
   }
 
   // Get current smoothed value (or initialize to 0 when no blend weight)
@@ -888,7 +868,7 @@ function applyMorphValue(morphCache, name, value) {
 // This means no remapping, just smooth lerping
 const JAW_OPEN_CURVE = [
   { time: 0, value: 0 },
-  { time: 1, value: 1 },
+  { time: 1, value: 1 }
 ];
 
 /**
@@ -939,7 +919,7 @@ function evaluateJawCurve(keys, inputValue) {
 function jawValueToRotation(jawBaseRotationZ, jawValue) {
   // Apply curve evaluation for smooth jaw movement (like morphs in metahumanToCC5.js)
   const clampedValue = Math.max(0, Math.min(1, jawValue));
-
+  
   // Apply the jaw curve for natural movement
   const easedValue = evaluateJawCurve(JAW_OPEN_CURVE, clampedValue);
 

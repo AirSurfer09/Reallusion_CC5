@@ -241,7 +241,8 @@ export const METAHUMAN_TO_CC5_DIRECT_MAPPING = {
  * Special cases:
  * 1. BLINKING: Always bilateral - combines L/R blink values
  * 2. SYMMETRICAL PAIRS: Averages L/R values to prevent exaggeration
- * 3. LIPS TOGETHER: Reduced to 30% intensity to prevent extreme lip closing (P/B/M sounds)
+ * 3. LIPS TOGETHER: Reduced to 40% intensity to prevent extreme lip closing (P/B/M sounds)
+ * 4. NON-MOUTH/JAW EXPRESSIONS: Scaled to 60% (eyes, brows, nose) to reduce intensity during speech
  * 
  * @param {Object} metahumanBlendshapes - Object with CTRL_expressions_* keys and numeric values (0-1)
  * @returns {Object} CC5 blendshapes with processed values
@@ -250,20 +251,35 @@ export const METAHUMAN_TO_CC5_DIRECT_MAPPING = {
  * const metahuman = {
  *   "CTRL_expressions_eyeBlinkL": 0.8,
  *   "CTRL_expressions_eyeBlinkR": 0.6,
+ *   "CTRL_expressions_browRaiseInL": 1.0,
  *   "CTRL_expressions_mouthLipsTogetherUL": 1.0,
  *   "CTRL_expressions_jawOpen": 0.5
  * };
  * const cc5 = convertMetaHumanToCC5Direct(metahuman);
  * // Result: {
- * //   "Eye_Blink_L": 0.7,  // (0.8 + 0.6) / 2 - synchronized
- * //   "Eye_Blink_R": 0.7,  // (0.8 + 0.6) / 2 - synchronized
- * //   "Mouth_Lips_Together_UL": 0.3,  // 1.0 * 0.3 - reduced intensity
- * //   "Jaw_Open": 0.5
+ * //   "Eye_Blink_L": 0.42,  // (0.8 + 0.6) / 2 * 0.6 - synchronized and scaled
+ * //   "Eye_Blink_R": 0.42,  // (0.8 + 0.6) / 2 * 0.6 - synchronized and scaled
+ * //   "Brow_Raise_In_L": 0.6,  // 1.0 * 0.6 - non-mouth expression scaled
+ * //   "Mouth_Lips_Together_UL": 0.4,  // 1.0 * 0.4 - reduced intensity
+ * //   "Jaw_Open": 0.5  // Full intensity - mouth/jaw related
  * // }
  */
 export function convertMetaHumanToCC5Direct(metahumanBlendshapes) {
   const cc5Blendshapes = {};
 
+  // Scaling factor for non-mouth/jaw expressions (eyes, brows, nose, etc.)
+  const NON_MOUTH_SCALE = 0.6;
+  
+  /**
+   * Helper function to check if a CC5 blendshape is mouth/jaw/lips related
+   * @param {string} cc5Name - The CC5 blendshape name
+   * @returns {boolean} True if mouth/jaw/lips related
+   */
+  const isMouthOrJawRelated = (cc5Name) => {
+    return cc5Name.startsWith("Mouth_") || 
+           cc5Name.startsWith("Jaw_");
+  };
+  
   // Special handling for bilateral blinking - always sync both eyes
   const blinkL = metahumanBlendshapes["CTRL_expressions_eyeBlinkL"] || 0;
   const blinkR = metahumanBlendshapes["CTRL_expressions_eyeBlinkR"] || 0;
@@ -271,8 +287,9 @@ export function convertMetaHumanToCC5Direct(metahumanBlendshapes) {
   // Only process if there's actual blink value
   if (blinkL > 0 || blinkR > 0) {
     const blinkAvg = (blinkL + blinkR) / 2;
-    cc5Blendshapes["Eye_Blink_L"] = blinkAvg;
-    cc5Blendshapes["Eye_Blink_R"] = blinkAvg;
+    // Apply scaling to eye blinks (non-mouth related)
+    cc5Blendshapes["Eye_Blink_L"] = blinkAvg * NON_MOUTH_SCALE;
+    cc5Blendshapes["Eye_Blink_R"] = blinkAvg * NON_MOUTH_SCALE;
   }
 
   // Define symmetrical pairs that should be averaged to prevent exaggeration
@@ -317,8 +334,15 @@ export function convertMetaHumanToCC5Direct(metahumanBlendshapes) {
     const leftTarget = METAHUMAN_TO_CC5_DIRECT_MAPPING[leftKey];
     const rightTarget = METAHUMAN_TO_CC5_DIRECT_MAPPING[rightKey];
     
-    if (leftTarget) cc5Blendshapes[leftTarget] = avgValue;
-    if (rightTarget) cc5Blendshapes[rightTarget] = avgValue;
+    // Apply scaling based on whether it's mouth/jaw related
+    if (leftTarget) {
+      const scale = isMouthOrJawRelated(leftTarget) ? 1.0 : NON_MOUTH_SCALE;
+      cc5Blendshapes[leftTarget] = avgValue * scale;
+    }
+    if (rightTarget) {
+      const scale = isMouthOrJawRelated(rightTarget) ? 1.0 : NON_MOUTH_SCALE;
+      cc5Blendshapes[rightTarget] = avgValue * scale;
+    }
   }
 
   // Define problematic blendshapes that need special handling
@@ -358,9 +382,10 @@ export function convertMetaHumanToCC5Direct(metahumanBlendshapes) {
     // Look up the CC5 target name
     const cc5Target = METAHUMAN_TO_CC5_DIRECT_MAPPING[metahumanKey];
     
-    // If mapping exists, apply the value directly
+    // If mapping exists, apply the value with appropriate scaling
     if (cc5Target) {
-      cc5Blendshapes[cc5Target] = value;
+      const scale = isMouthOrJawRelated(cc5Target) ? 1.0 : NON_MOUTH_SCALE;
+      cc5Blendshapes[cc5Target] = value * scale;
     }
   }
 
